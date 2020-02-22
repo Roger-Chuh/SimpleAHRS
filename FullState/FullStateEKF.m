@@ -3,7 +3,7 @@ classdef FullStateEKF < handle
     %   Detailed explanation goes here
     
     properties
-        q_b_i % Rotation from inertial frame to body frame [w x y z]
+        q_i_b % Rotation from body to inertial
         Q % Process noise covariance
         R % Measurement noise covariance
         P % Estimate error covariance
@@ -12,31 +12,47 @@ classdef FullStateEKF < handle
     end
     
     methods
-        function obj = FullStateEKF(Q, R, P, q_b_i, dt)
+        function obj = FullStateEKF(Q, R, P, q_i_b, dt)
             %FULLSTATEEKF Construct an instance of this class
             %   Detailed explanation goes here
             obj.Q = Q;
             obj.R = R;
             obj.P = P;
-            obj.q_b_i = q_b_i;
+            obj.q_i_b = q_i_b;
             obj.dt = dt;
         end
         
         function state = GetState(obj)
             % We return state in euler angles
-            state = obj.q_b_i;
+            state = obj.q_i_b;
         end
         
         function [x_hat_prior, P_prior] = TimeUpdate(obj, gyr)
-            F = obj.GetStateTransitionJacobian(gyr);
-            W = obj.GetProcessNoiseJacobian(gyr);
+            %disp(["State before update: "]);
+            %obj.q_b_i
             
-            x_hat_prior = F * obj.q_b_i;
-            x_hat_prior = x_hat_prior ./ norm(x_hat_prior);
+            %disp(["New angular velocity: "]);
+            %gyr
+            
+            F = obj.GetStateTransitionJacobian(gyr);
+            %disp(["State transition jacobian: "]);
+            %F
+            
+            W = obj.GetProcessNoiseJacobian(gyr);
+            %disp(["Process noise jacobian: "]);
+            %W
+            
+            x_hat_prior = F * obj.q_i_b;
+            
+            norm_quat = norm(x_hat_prior);
+            
+            x_hat_prior = x_hat_prior ./ norm_quat;
+            %disp("State after time update: ");
+            %x_hat_prior
             
             P_prior = F*obj.P*F' + W*obj.Q*W';
             
-            obj.q_b_i = x_hat_prior;
+            obj.q_i_b = x_hat_prior;
             obj.P = P_prior;
         end
         
@@ -47,17 +63,29 @@ classdef FullStateEKF < handle
             P_prior = obj.P;
             R = obj.R;
             Q = obj.Q;
-            x_hat_prior = obj.q_b_i;
+            x_hat_prior = obj.q_i_b;
             
-            z_pred = quatToDCM(x_hat_prior)' * [0; 0; -9.81];
+            q_b_i_prior = quatConj(x_hat_prior); %rotate inertial to body
+            
+            %disp("Measured acceleration")
+            %accel
+            
+            %disp("Predicted acceleration")
+            R_b_i = quatToDCM(q_b_i_prior);
+            g_i = [0; 0; 9.81];
+            z_pred = R_b_i * g_i;
+            %z_pred'
             
             K = (P_prior*H') / (H*P_prior*H' + V*R*V');
-            x_hat_post = x_hat_prior + K*(accel' - z_pred);
+            delta_x = K*(accel' - z_pred);
+            x_hat_post = x_hat_prior + delta_x;
             P_post = (eye(4) - K*H)*P_prior;
             
-            x_hat_post = x_hat_post ./ norm(x_hat_post);
+            norm_quat = norm(x_hat_post);
             
-            obj.q_b_i = x_hat_post;
+            x_hat_post = x_hat_post ./ norm_quat;
+            
+            obj.q_i_b = x_hat_post;
             obj.P = P_post;
             
         end
@@ -68,22 +96,24 @@ classdef FullStateEKF < handle
         end
         
         function [H] = GetMeasurementJacobian(obj, accel)
-            w = obj.q_b_i(1);
-            x = obj.q_b_i(2);
-            y = obj.q_b_i(3);
-            z = obj.q_b_i(4);
+            w = obj.q_i_b(1);
+            x = obj.q_i_b(2);
+            y = obj.q_i_b(3);
+            z = obj.q_i_b(4);
             
-            g = -9.81;
+            g = 9.81;
             
             H = zeros(3,4);
-            H(1,1) = 2*y;
+            H(1,1) = -2*y;
             H(1,2) = 2*z;
-            H(1,3) = 2*w;
+            H(1,3) = -2*w;
             H(1,4) = 2*x;
+            
             H(2,1) = 2*x;
             H(2,2) = 2*w;
             H(2,3) = 2*z;
             H(2,4) = 2*y;
+            
             H(3,1) = 2*w;
             H(3,2) = -2*x;
             H(3,3) = -2*y;
@@ -93,13 +123,13 @@ classdef FullStateEKF < handle
         end
         
         function [W] = GetProcessNoiseJacobian(obj, gyro)
-            q0 = obj.q_b_i(1);
-            qv = obj.q_b_i(2:4);
+            q0 = obj.q_i_b(1);
+            qv = obj.q_i_b(2:4);
             W = (-obj.dt/2)*[-qv'; (q0 * eye(3) + skew(qv))];
         end
         
         function [V] = GetMeasurementNoiseJacobian(obj, accel)
-            V = quatToDCM(obj.q_b_i)';
+            V = eye(3);
         end
     end
 end
