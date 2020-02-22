@@ -4,7 +4,7 @@ addpath('FullState');
 addpath('data');
 
 %% Process Data
-data = importAPDM('data\', 'howard_arm_cal_646.h5', 'SI-000646');
+data = importAPDM('data/', 'howard_arm_cal_646.h5', 'SI-000646');
 freq = 128; 
 dt = freq/128;
 acc = data(:,1:3);
@@ -15,14 +15,19 @@ quat_est = data(:,10:13); % Output of IMU built in EKF
 %% Tuning Parameters
 
 stationary_range = 1250:2250;
-sigma_a = mean(std(acc(stationary_range, :)));
-sigma_w = mean(std(gyr(stationary_range, :)));
+sigma_a = std(acc(stationary_range, :));
+sigma_w = std(gyr(stationary_range, :));
 
-sigma_p = .5;
+sigma_p = .1;
 
-Q = sigma_w^2 .* eye(3);
-R = sigma_a^2 .* eye(3);
-P_init = sigma_p^2 * eye(4);
+% Process Noise
+Q = sigma_w.^2 .* eye(3);
+
+% Measurement Noise
+R = sigma_a.^2 .* eye(3);
+
+% Initial state covariance
+P_init = sigma_p^2 * eye(4,4) + (0.1*sigma_p)^2 * ones(4,4);
 
 %% Set up 
 
@@ -36,7 +41,8 @@ EKF = FullStateEKF(Q, R, P_init, q_i_b, dt);
 for i = 1:length(acc)
    gyro = gyr(i,:);
    %disp("Time update");
-   EKF.TimeUpdate(gyro);
+   %EKF.TimeUpdate(gyro);
+   EKF.TimeUpdate([0 0 0]);
    measurement = acc(i,:);
    %disp("Measurement update");
    EKF.MeasurementUpdate(measurement);

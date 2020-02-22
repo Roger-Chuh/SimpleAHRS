@@ -76,8 +76,10 @@ classdef FullStateEKF < handle
             z_pred = R_b_i * g_i;
             %z_pred'
             
+            residual = accel' - z_pred
+            
             K = (P_prior*H') / (H*P_prior*H' + V*R*V');
-            delta_x = K*(accel' - z_pred);
+            delta_x = K*(residual);
             x_hat_post = x_hat_prior + delta_x;
             P_post = (eye(4) - K*H)*P_prior;
             
@@ -92,7 +94,7 @@ classdef FullStateEKF < handle
         
         function [F] = GetStateTransitionJacobian(obj, gyro)
             omega = skew_quat(gyro);
-            F = [eye(4) + (obj.dt / 2)*omega];
+            F = eye(4) + (obj.dt / 2)*omega;
         end
         
         function [H] = GetMeasurementJacobian(obj, accel)
