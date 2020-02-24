@@ -1,5 +1,5 @@
 %{
-Extended Kalman Filter for attitude estimation
+Err
 %}
 
 clc; clear all; close all;
@@ -51,8 +51,9 @@ for i = 2:N
     
     %% Measurement Update
     a = acc(i,:);
-
-    z= a';
+    % Normalize to match expected value?
+    z = (a ./ (norm(a) / gravity))';
+    
     H = [-X(3),  X(4), -X(1),  X(2); ...
           X(2),  X(1),  X(4),  X(3); ...
           X(1), -X(2), -X(3),  X(4)] * 2 * gravity;

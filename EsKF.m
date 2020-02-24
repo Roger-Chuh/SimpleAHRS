@@ -1,5 +1,5 @@
 %{
-Extended Kalman Filter for attitude estimation
+Error state Kalman Filter for attitude estimation
 %}
 
 clc; clear all; close all;
@@ -34,48 +34,11 @@ for i = 2:N
     %% Time Update
     w = gyr(i,:);
     
-    % State transition matrix
-    Omega = skew_quat(w);
-    F = eye(4) + dt * Omega / 2;
-    
-    % Process noise matrix
-    W = [-X(2), -X(3), -X(4); ...
-          X(1), -X(4),  X(3); ...
-          X(4),  X(1), -X(2); ...
-         -X(3),  X(2),  X(1)] * (-dt/2);
-     
-    X = F * X;
-    X = X ./ norm(X);
-    
-    P = F*P*F' + W*Q*W';
     
     %% Measurement Update
     a = acc(i,:);
 
-    z= a';
-    H = [-X(3),  X(4), -X(1),  X(2); ...
-          X(2),  X(1),  X(4),  X(3); ...
-          X(1), -X(2), -X(3),  X(4)] * 2 * gravity;
     
-    V = eye(3);
-      
-    z_pred = H*X;
-    
-    residual = z - z_pred;
-    
-    S = H*P*H' + V*R*V';
-    
-    K = P*H' / S;
-    
-    X = X + K*residual;
-    
-    P = (eye(4) - K*H) * P;
-    
-    X = X / norm(X);
-    
-    P = (P + P')/2;
-    
-    est_q(i,:) = X';
 end
 
 %% Plotting
