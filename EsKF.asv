@@ -1,5 +1,5 @@
 %{
-Err
+Error state Kalman Filter for attitude estimation
 %}
 
 clc; clear all; close all;
@@ -34,62 +34,32 @@ for i = 2:N
     %% Time Update
     w = gyr(i,:);
     
-    % State transition matrix
+    % Using q \t
     Omega = skew_quat(w);
-    F = eye(4) + dt * Omega / 2;
+    F = eye(4) + (dt/2)*Omega;
     
-    % Process noise matrix
-    W = [-X(2), -X(3), -X(4); ...
-          X(1), -X(4),  X(3); ...
-          X(4),  X(1), -X(2); ...
-         -X(3),  X(2),  X(1)] * (-dt/2);
-     
-    X = F * X;
+    X = F*X;
+    % Normalize to get nominal state
     X = X ./ norm(X);
     
-    P = F*P*F' + W*Q*W';
     
     %% Measurement Update
     a = acc(i,:);
-    % Normalize to match expected value?
-    z = (a ./ (norm(a) / gravity))';
+
     
-    H = [-X(3),  X(4), -X(1),  X(2); ...
-          X(2),  X(1),  X(4),  X(3); ...
-          X(1), -X(2), -X(3),  X(4)] * 2 * gravity;
-    
-    V = eye(3);
-      
-    z_pred = H*X;
-    
-    residual = z - z_pred;
-    
-    S = H*P*H' + V*R*V';
-    
-    K = P*H' / S;
-    
-    X = X + K*residual;
-    
-    P = (eye(4) - K*H) * P;
-    
-    X = X / norm(X);
-    
-    P = (P + P')/2;
-    
-    est_q(i,:) = X';
 end
 
 %% Plotting
 
 eul_est = quat2eul(est_q);
-eul_ekf = quatToEuler(truth_q);
+eul_eskf = quatToEuler(truth_q);
 
 figure(1)
-plot([eul_est(:,2), eul_ekf(:,2)]); 
-legend('kf', 'me')
+plot([eul_est(:,2), eul_eskf(:,2)]); 
+legend('kf', 'EsKF')
 title("Pitch");
 
 figure(2)
-plot([eul_est(:,3), eul_ekf(:,3)]); 
-legend('kf', 'me')
+plot([eul_est(:,3), eul_eskf(:,3)]); 
+legend('kf', 'EsKF')
 title("Roll");

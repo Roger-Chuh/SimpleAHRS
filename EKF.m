@@ -20,7 +20,7 @@ P = 1e-4 * eye(4);
 est_q(1,:) = X';
 
 noise_gyro = 0.02;
-noise_accel = 0.15;
+noise_accel = 0.2;
 
 Q = noise_gyro .^2 * eye(3);
 R = noise_accel .^2 * eye(3);
