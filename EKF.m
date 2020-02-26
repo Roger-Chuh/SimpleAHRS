@@ -7,7 +7,7 @@ clc; clear all; close all;
 addpath('data');
 data = importAPDM('data/', 'howard_arm_cal_646.h5', 'SI-000646');
 freq = 128; 
-dt = freq/128;
+dt = 1 / freq;
 acc = data(:,1:3);
 gyr = data(:,4:6);
 truth_q = data(:,10:13); % Output of IMU built in EKF
@@ -42,10 +42,10 @@ for i = 2:N
     W = [-X(2), -X(3), -X(4); ...
           X(1), -X(4),  X(3); ...
           X(4),  X(1), -X(2); ...
-         -X(3),  X(2),  X(1)] * (-dt/2);
+         -X(3),  X(2),  X(1)] .* (-dt/2);
      
     X = F * X;
-    X = X ./ norm(X);
+    %X = X ./ norm(X);
     
     P = F*P*F' + W*Q*W';
     
@@ -59,7 +59,7 @@ for i = 2:N
     
     V = eye(3);
       
-    z_pred = H*X;
+    z_pred = quatToDCM(X)' * [0; 0; gravity];;
     
     residual = z - z_pred;
     
@@ -73,14 +73,12 @@ for i = 2:N
     
     X = X / norm(X);
     
-    P = (P + P')/2;
-    
     est_q(i,:) = X';
 end
 
 %% Plotting
 
-eul_est = quat2eul(est_q);
+eul_est = quatToEuler(est_q);
 eul_ekf = quatToEuler(truth_q);
 
 figure(1)

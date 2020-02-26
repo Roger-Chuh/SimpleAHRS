@@ -7,7 +7,7 @@ clc; clear all; close all;
 addpath('data');
 data = importAPDM('data/', 'howard_arm_cal_646.h5', 'SI-000646');
 freq = 128; 
-dt = freq/128;
+dt = 1 / freq;
 acc = data(:,1:3);
 gyr = data(:,4:6);
 truth_q = data(:,10:13); % Output of IMU built in EKF
